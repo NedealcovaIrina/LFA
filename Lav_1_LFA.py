@@ -1,72 +1,116 @@
 import random
 
-class Grammar:
-    def __init__(self):
-        self.VN = {'S', 'A', 'B', 'C'}  # Non-terminal symbols
-        self.VT = {'a', 'b'}  # Terminal symbols
-        self.P = {  # Production rules
-            'S': ['aA', 'aB'],
-            'A': ['bS'],
-            'B': ['aC'],
-            'C': ['a', 'bS']
-        }
-        self.S = 'S'  # Start symbol
+# Defining the grammar
+VN = ['S', 'A', 'B', 'C']  # Non-terminal symbols
+VT = ['a', 'b']  # Terminal symbols
+S = 'S'  # Start symbol
+P = {  # Production rules
+    'S': ['aA', 'aB'],
+    'A': ['bS'],
+    'B': ['aC'],
+    'C': ['a', 'bS']
+}
+F = 'X'  # Symbol indicating successful completion of the word
 
-    def generateString(self):
-        # Function to recursively expand and generate strings based on production rules
-        def expand(symbol):
-            if symbol in self.VN:
-                productions = self.P[symbol]
-                chosen_production = random.choice(productions)
-                return ''.join(expand(sym) for sym in chosen_production)
+# Generate a string from the grammar
+def generate_string(start_symbol):
+
+    while any(nt in start_symbol for nt in VN):  # Check for the presence of non-terminal symbols
+        for nt in VN:
+            if nt in start_symbol:
+                start_symbol = start_symbol.replace(nt, random.choice(P[nt]), 1)
+    return start_symbol
+
+# Convert grammar to a finite automaton
+def grammar_to_finite_automaton():
+
+    transition_function = {}
+    for nt in P:
+        for production in P[nt]:
+            pair = (nt, production[0])
+            if len(production) == 2:
+                transition_function[pair] = production[1]
             else:
-                return symbol
-        return expand(self.S)
+                transition_function[pair] = F
+    return transition_function
 
-class FiniteAutomaton:
-    def __init__(self, states, alphabet, transition_function, start_state, accepting_states):
-        self.Q = states  # States
-        self.Sigma = alphabet  # Alphabet
-        self.delta = transition_function  # Transition function
-        self.q0 = start_state  # Start state
-        self.F = accepting_states  # Accepting states
+# Check if a word belongs to the language
+def check_word_in_language(word, transitions):
 
-    def stringBelongsToLanguage(self, inputString):
-        # Function to check if a given string belongs to the language defined by the automaton
-        current_state = self.q0
-        for char in inputString:
-            if (current_state, char) in self.delta:
-                current_state = self.delta[(current_state, char)]
-            else:
-                return False
-        return current_state in self.F
+    current_state = S
+    for char in word:
+        if char not in VT:
+            print(f"{word} does not exist")
+            return False
+        pair = (current_state, char)
+        if pair in transitions:
+            current_state = transitions[pair]
+        else:
+            print(f"{word} does not exist")
+            return False
 
-def grammar_to_FA(grammar):
-    # Define finite automaton states, alphabet, transitions, start and accepting states
-    states = {'q0', 'q1', 'q2', 'q3', 'q4', 'qF'}
-    alphabet = {'a', 'b'}
-    transition_function = {
-        ('q0', 'a'): 'q1',
-        ('q1', 'b'): 'q2',
-        ('q2', 'a'): 'q3',
-        ('q3', 'a'): 'q4',
-    }
-    start_state = 'q0'
-    accepting_states = {'q4'}
-    return FiniteAutomaton(states, alphabet, transition_function, start_state, accepting_states)
-
-def main():
-    grammar = Grammar()
-    print("Generated strings from the grammar:")
-    for _ in range(5):
-        print(grammar.generateString())
-
-    fa = grammar_to_FA(grammar)
-    test_string = "abaa"
-    if fa.stringBelongsToLanguage(test_string):
-        print(f"String {test_string} belongs to the language.")
+    if current_state == F or current_state not in VN:
+        print(f"{word} belongs to the grammar")
+        return True
     else:
-        print(f"String {test_string} does not belong to the language.")
+        print(f"{word} does not exist")
+        return False
+
+def classify_grammar(VN, VT, P, S):
+    is_type_3 = True
+    is_type_2 = True
+
+    for lhs, productions in P.items():
+        for production in productions:
+            # Check for Type 3 (Regular) Grammar
+            if not(production == "" or
+                   (len(production) == 1 and production in VT) or
+                   (len(production) == 2 and production[0] in VT and production[1] in VN)):
+                is_type_3 = False
+
+            # Check for Type 2 (Context-Free) Grammar
+            if len(lhs) != 1 or not(lhs in VN):
+                is_type_2 = False
+
+    if is_type_3:
+        return "Type 3 (Regular)"
+    elif is_type_2:
+        return "Type 2 (Context-Free)"
+    else:
+        # This example does not cover Type 1 (Context-Sensitive) and Type 0 (Recursively Enumerable) checks
+        # as it requires more complex analysis, especially for Type 1.
+        return "Type 1 (Context-Sensitive) or Type 0 (Recursively Enumerable)"
+
+# Example usage
+VN = ['S', 'A', 'B', 'C']
+VT = ['a', 'b']
+P = {
+    'S': ['aA', 'aB'],
+    'A': ['bS'],
+    'B': ['aC'],
+    'C': ['a', 'bS']
+}
+S = 'S'
+
+print(classify_grammar(VN, VT, P, S))
+
+
+# Main function to demonstrate how the code works
+def main():
+    print('Generated words:')
+    for _ in range(5):
+        word = generate_string(S)
+        print(word)
+
+    print('\nConverting grammar to a finite automaton:')
+    transitions = grammar_to_finite_automaton()
+    for transition, result in transitions.items():
+        print(f"{transition} -> {result}")
+
+    print('\nChecking if words belong to the language:')
+    words_to_test = ['aab', 'ab', 'aa', 'ba', 'aabaa', 'aaa', 'aba']
+    for word in words_to_test:
+        check_word_in_language(word, transitions)
 
 if __name__ == "__main__":
     main()
